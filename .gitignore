@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+venv/
+.venv/
+
+# App data (runtime-generated, don't commit)
+data/seen_urls.txt
+logs/
+downloads/
+
+# Keep folder stubs
+!data/.gitkeep
+!logs/.gitkeep
+!downloads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

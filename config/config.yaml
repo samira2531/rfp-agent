@@ -1,0 +1,261 @@
+# ============================================================
+# RFP Agent — India IT Managed Services for Startups
+# ============================================================
+
+# ── IT managed services keywords (RFP must mention at least one)
+keywords:
+  - "managed services"
+  - "managed IT"
+  - "IT services"
+  - "information technology"
+  - "cloud services"
+  - "network management"
+  - "helpdesk"
+  - "cybersecurity"
+  - "NOC"
+  - "SOC"
+  - "data center"
+  - "infrastructure management"
+  - "facility management services"
+  - "IT support"
+  - "technical support"
+  - "software"
+  - "SaaS"
+  - "AMC"
+  - "annual maintenance"
+  - "IT infrastructure"
+  - "application development"
+  - "system integration"
+  - "O&M"
+  - "digital transformation"
+  - "IT project"
+  - "network maintenance"
+  - "server maintenance"
+  - "ERP"
+  - "computer"
+  - "networking"
+  - "firewall"
+  - "Wi-Fi"
+  - "bandwidth"
+  - "hardware maintenance"
+  - "CCTV"
+  - "surveillance system"
+  - "biometric"
+  - "access control"
+
+# ── India-only location filter
+location_filter:
+  enabled: true
+  include:
+    - "India"
+    - "Indian"
+    - "GOI"
+    - "GoI"
+    - ".gov.in"
+    - "₹"
+    - "INR"
+    - "rupee"
+    - "lakh"
+    - "crore"
+    - "Maharashtra"
+    - "Karnataka"
+    - "Delhi"
+    - "Mumbai"
+    - "Telangana"
+    - "Tamil Nadu"
+    - "Rajasthan"
+    - "Gujarat"
+    - "Uttar Pradesh"
+    - "Bengaluru"
+    - "Hyderabad"
+    - "Chennai"
+    - "Pune"
+    - "Andhra Pradesh"
+    - "Punjab"
+    - "Haryana"
+    - "Kerala"
+    - "Odisha"
+    - "Madhya Pradesh"
+    - "NIC"
+    - "NICSI"
+    - "MeitY"
+    - "GeM"
+    - "CPPP"
+    - "STPI"
+    - "CDAC"
+    - "UIDAI"
+    - "BSNL"
+    - "BEL"
+    - "CRIS"
+
+# ── Startup eligibility filter
+startup_filter:
+  enabled: false
+  keywords:
+    - "startup"
+    - "start-up"
+    - "Startup India"
+    - "DPIIT"
+    - "DIPP"
+    - "MSE"
+    - "MSME"
+    - "micro and small"
+    - "small enterprise"
+    - "new entrant"
+    - "startup eligible"
+    - "open to startup"
+    - "startup category"
+    - "GeM startup"
+    - "registered startup"
+
+# ============================================================
+# RSS Feeds — India focused
+# ============================================================
+rss_feeds:
+
+  - name: "RFPMart — IT & Computer Services"
+    url: "https://www.rfpmart.com/it-services-computer-maintenance-and-technical-services-rfp-bids.xml"
+
+  - name: "RFPMart — Managed IT Services"
+    url: "https://www.rfpmart.com/technology-telecom-managed-services-rfp-bids.xml"
+
+  - name: "RFPMart — Software & Systems"
+    url: "https://www.rfpmart.com/software-systems-rfp-bids.xml"
+
+  - name: "RFPMart — Cybersecurity"
+    url: "https://www.rfpmart.com/cybersecurity-rfp-bids.xml"
+
+  # CPPP IT-category RSS — bypasses the CAPTCHA-gated HTML interface
+  - name: "CPPP IT Category Tenders (RSS)"
+    url: "https://eprocure.gov.in/cppp/rss/tendersbycategory_it.xml"
+
+# ============================================================
+# Websites — India government procurement portals
+# ============================================================
+# CAPTCHA-blocked (removed): CPPP HTML, NIC eTenders, Maharashtra, Delhi, TN portals
+# GeM BidPlus HTML: React SPA, handled by dedicated gem_india.py fetcher
+websites:
+
+  # ── NICSI (NIC's procurement arm — direct ZIP/PDF, no CAPTCHA) ──────────────
+  - name: "NICSI Active Tenders"
+    url: "https://www.nicsi.com/nicsi/active-tenders/"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  - name: "NICSI GeM Bids"
+    url: "https://www.nicsi.com/nicsi/nicsi-gem-bids/"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # ── MeitY (Ministry of Electronics & IT) ────────────────────────────────────
+  - name: "MeitY Tenders"
+    url: "https://www.meity.gov.in/tenders"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # ── CDAC (Centre for Development of Advanced Computing) ─────────────────────
+  # Has 75 links but PDFs are behind detail pages (aspx query-string IDs)
+  - name: "CDAC Tenders"
+    url: "https://www.cdac.in/index.aspx?id=tender"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+    detail_patterns:
+      - "cdac\\.in.*tender.*id="
+      - "cdac\\.in.*t_id="
+      - "cdac\\.in.*TenderID="
+
+  # ── NIC (National Informatics Centre) main procurements ─────────────────────
+  # 163 links — PDFs behind detail pages; pattern: /procurements/view/
+  - name: "NIC Procurements"
+    url: "https://www.nic.in/procurements/"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+    detail_patterns:
+      - "nic\\.in/procurements/\\d+"
+      - "nic\\.in/procurements/view"
+
+  # ── STPI (Software Technology Parks of India) ────────────────────────────────
+  - name: "STPI Tenders"
+    url: "https://www.stpi.in/en/main-tenders"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+    ssl_verify: false
+    detail_patterns:
+      - "stpi\\.in.*tender"
+      - "stpi\\.in.*procurement"
+
+  # ── UIDAI (Aadhaar authority — heavy IT buyer) ───────────────────────────────
+  - name: "UIDAI Tenders"
+    url: "https://uidai.gov.in/en/about-uidai/work-with-uidai/tenders-article.html"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # NOTE: BEL → tender URL redirects to eprocurebel.co.in (NIC eProcure, CAPTCHA-blocked)
+  # NOTE: CRIS → encoding issues on homepage; tenders likely on NIC eProcure
+  # NOTE: BSNL → tender URL structure changed; not findable from homepage
+
+  # ── National Portal of India — tender listing ────────────────────────────────
+  - name: "India.gov.in Tenders"
+    url: "https://services.india.gov.in/service/detail/get-list-of-current-tenders"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # ── Rajasthan SPPP ───────────────────────────────────────────────────────────
+  - name: "Rajasthan SPPP"
+    url: "https://sppp.rajasthan.gov.in/sppp/Home/index"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+    ssl_verify: false
+
+# ============================================================
+# GeM Dedicated Fetcher
+# ============================================================
+gem:
+  enabled: false   # bidplus.gem.gov.in actively refuses connections — use NICSI GeM Bids mirror instead
+
+# ============================================================
+# SAM.gov — disabled (US only)
+# ============================================================
+sam_gov:
+  enabled: false
+  api_key: ""
+  search_terms: []
+  posted_from_days: 1
+
+# ============================================================
+# Email (IMAP) — disabled
+# ============================================================
+email:
+  enabled: false
+  imap_server: "imap.gmail.com"
+  imap_port: 993
+  username: ""
+  password: ""
+  folder: "INBOX"
+  subject_keywords:
+    - "RFP"
+    - "Request for Proposal"
+    - "Tender"
+    - "GeM"
+    - "managed services"
+    - "IT services"
+    - "startup"
+
+# ============================================================
+# Download settings
+# ============================================================
+downloads:
+  folder: "downloads"
+  max_file_size_mb: 100
+  document_extensions: [".pdf", ".docx", ".doc", ".zip", ".xlsx", ".xls"]
+
+# ============================================================
+# Email notification digest
+# ============================================================
+notifications:
+  enabled: false
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  username: ""
+  password: ""
+  from_email: ""
+  to_emails:
+    - ""
+
+# ============================================================
+# Output
+# ============================================================
+output:
+  csv_file: "data/rfp_tracker.csv"
+  log_file: "rfp_agent.log"
