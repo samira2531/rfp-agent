@@ -232,7 +232,7 @@ def is_detail_page(url: str, extra_patterns: list = None) -> bool:
 
 
 def follow_and_download(page_url: str, session, max_mb: int,
-                        extensions: set, log) -> list:
+                        extensions: set, log, ssl_verify: bool = True) -> list:
     """
     Visit an RFP detail page (HTML) and download every attached document.
     Returns a list of saved file paths.
@@ -240,7 +240,7 @@ def follow_and_download(page_url: str, session, max_mb: int,
     from bs4 import BeautifulSoup
     saved = []
     try:
-        r = session.get(page_url, timeout=30)
+        r = session.get(page_url, timeout=30, verify=ssl_verify)
         r.raise_for_status()
 
         content_type = r.headers.get("content-type", "").lower()

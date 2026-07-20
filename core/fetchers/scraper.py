@@ -13,6 +13,24 @@ from core.utils import (
     is_startup_eligible, read_page_text,
 )
 
+# Single-word / short UI navigation texts that should never be treated as RFP links
+_NAV_TEXTS = {
+    "close", "back", "cancel", "menu", "home", "next", "previous", "prev",
+    "ok", "submit", "search", "go", "more", "view all", "see all", "load more",
+    "read more", "click here", "here", "link", "top", "skip", "login",
+    "sign in", "register", "logout", "sign out", "print", "share", "follow",
+    "services", "about", "contact", "sitemap", "feedback", "help",
+    "what's new", "whats new", "news", "announcements", "announcement",
+    "events", "updates", "notifications", "latest", "highlights", "gallery",
+    "media", "press", "archive", "careers", "jobs", "vacancies",
+}
+
+# Filename fragments that indicate non-tender documents (certificates, policies, etc.)
+_SKIP_FILENAME_FRAGMENTS = {
+    "certificate", "cert_", "_cert", "gigw", "wqc", "policy", "privacy",
+    "terms", "user_manual", "manual", "brochure", "annual_report",
+}
+
 
 def fetch_websites(config: dict, seen: set, new_items: list, session, log):
     keywords        = config.get("keywords", [])
@@ -75,19 +93,21 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                 # ── Case A: direct document link
                 if ext in site_exts:
+                    # Skip known non-tender filenames (certificates, policy docs, etc.)
+                    fname_lower = Path(parsed.path).name.lower()
+                    if any(frag in fname_lower for frag in _SKIP_FILENAME_FRAGMENTS):
+                        continue
+
                     seen.add(abs_url)
 
-                    # For direct doc links: read surrounding page context to check startup eligibility
                     if require_startup and startup_kws:
                         if not is_startup_eligible(context, startup_kws):
                             log.info(f"  Skipped doc (not startup eligible): {link_text}")
                             continue
 
-                    # Use context as title when link_text is generic ("View PDF", "Download")
                     generic_labels = {"view pdf", "download", "download as zip file",
                                       "download file", "view", "open", "view document"}
                     if link_text.lower() in generic_labels:
-                        # Pull first meaningful sentence from the row context
                         title_str = context.replace(link_text, "").strip()[:120] or link_text
                     else:
                         title_str = link_text
@@ -110,18 +130,25 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                 # ── Case B: HTML detail page — follow it, check startup, download docs
                 elif ext in ("", ".htm", ".html", ".aspx", ".php") and is_detail_page(
                         abs_url, extra_patterns=site_cfg.get("detail_patterns")):
+
+                    # Skip pure navigation links (Close, Back, Services, etc.)
+                    if link_text.lower() in _NAV_TEXTS:
+                        continue
+                    # Also skip very short or empty link texts with no title attr
+                    if len(link_text) < 8 and not a.get("title"):
+                        continue
+
                     seen.add(abs_url)
                     log.info(f"  Following: {link_text or abs_url}")
 
-                    # Read full page text to check startup eligibility
                     if require_startup and startup_kws:
                         page_text = read_page_text(abs_url, session, log)
                         if not is_startup_eligible(page_text, startup_kws):
                             log.info(f"  Skipped (not startup eligible): {link_text}")
                             continue
-                        log.info(f"  Startup eligible ✓")
 
-                    saved = follow_and_download(abs_url, session, max_mb, site_exts, log)
+                    saved = follow_and_download(abs_url, session, max_mb, site_exts, log,
+                                                ssl_verify=ssl_verify)
                     row = {
                         "date":             datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "title":            link_text or abs_url,

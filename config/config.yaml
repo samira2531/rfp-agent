@@ -178,10 +178,7 @@ websites:
       - "stpi\\.in.*tender"
       - "stpi\\.in.*procurement"
 
-  # ── UIDAI (Aadhaar authority — heavy IT buyer) ───────────────────────────────
-  - name: "UIDAI Tenders"
-    url: "https://uidai.gov.in/en/about-uidai/work-with-uidai/tenders-article.html"
-    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+  # NOTE: UIDAI consistently times out (30s) — removed until their site is stable
 
   # NOTE: BEL → tender URL redirects to eprocurebel.co.in (NIC eProcure, CAPTCHA-blocked)
   # NOTE: CRIS → encoding issues on homepage; tenders likely on NIC eProcure
