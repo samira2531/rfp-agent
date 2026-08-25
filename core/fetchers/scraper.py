@@ -23,6 +23,10 @@ _NAV_TEXTS = {
     "what's new", "whats new", "news", "announcements", "announcement",
     "events", "updates", "notifications", "latest", "highlights", "gallery",
     "media", "press", "archive", "careers", "jobs", "vacancies",
+    # Section navigation links found on STPI and similar portals
+    "archive tenders", "tenders awarded", "awarded tenders", "past tenders",
+    "expired tenders", "current tenders", "upcoming tenders", "all tenders",
+    "download", "downloads", "view tender", "view rfp", "view document",
 }
 
 # Filename fragments that indicate non-tender documents (certificates, policies, etc.)
@@ -149,6 +153,9 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                     saved = follow_and_download(abs_url, session, max_mb, site_exts, log,
                                                 ssl_verify=ssl_verify)
+                    if not saved:
+                        log.info(f"  No documents found at: {link_text or abs_url}")
+                        continue
                     row = {
                         "date":             datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "title":            link_text or abs_url,

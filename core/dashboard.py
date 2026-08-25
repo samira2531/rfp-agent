@@ -27,7 +27,7 @@ app = Flask(__name__)
 def load_rfps() -> list:
     if not CSV_FILE.exists():
         return []
-    with open(CSV_FILE, encoding="utf-8") as f:
+    with open(CSV_FILE, encoding="utf-8-sig") as f:
         return list(reversed(list(csv.DictReader(f))))
 
 

@@ -11,6 +11,11 @@ build/
 venv/
 .venv/
 
+# Debug / scratch scripts (not needed on other machines)
+scripts/debug_*.py
+scripts/probe_portals.py
+scripts/read_docs*.py
+
 # App data (runtime-generated, don't commit)
 data/seen_urls.txt
 logs/
