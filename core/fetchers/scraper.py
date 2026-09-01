@@ -82,6 +82,10 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
             soup = BeautifulSoup(r.text, "lxml")
 
+            # Prevent circular: if the listing page links back to itself,
+            # treat it as already seen so it's not followed as a detail page.
+            seen.add(url)
+
             for a in soup.find_all("a", href=True):
                 href    = a["href"].strip()
                 abs_url = urllib.parse.urljoin(url, href)
@@ -90,24 +94,29 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                 if parsed.scheme not in ("http", "https"):
                     continue
+                # Strip fragment (#anchor) — same-page anchors are the same resource
+                abs_url = urllib.parse.urlunparse(parsed._replace(fragment=""))
                 if abs_url in seen:
                     continue
 
                 link_text = " ".join(a.get_text(" ", strip=True).split())
                 context   = f"{link_text} {a.get('title') or ''}"
-                # Walk up the DOM until we find a container with meaningful text
-                # that's not the entire page body. Cap at 4 levels to avoid
-                # polluting context with distant page sections.
+                # Walk up the DOM collecting surrounding text.
+                # Keep walking if the current node has no keyword match yet —
+                # this handles cases where the link is in a sub-list and the
+                # tender title is one level higher in the DOM tree.
                 node = a.parent
-                for _ in range(4):
+                for _ in range(5):
                     if node is None or node.name in ("body", "html", "[document]"):
                         break
                     node_text = node.get_text(" ", strip=True)
-                    if 60 < len(node_text) < 2000:
-                        context += " " + node_text[:500]
-                        break
                     if len(node_text) >= 2000:
                         break
+                    if len(node_text) > 60:
+                        context += " " + node_text[:500]
+                        # Stop only if keywords now found, otherwise keep walking
+                        if matches_keywords(context, keywords):
+                            break
                     node = node.parent
 
                 if not matches_keywords(context, keywords):

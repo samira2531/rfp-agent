@@ -189,9 +189,9 @@ def extract_deadline(text: str) -> str:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
             if 1 <= d <= 31 and 1 <= mo <= 12 and 2020 <= y <= 2035:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
-        # DD MonthName YYYY
+        # DD MonthName YYYY  (space or hyphen-separated)
         dm = re.search(
-            r'(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{4})',
+            r'(\d{1,2})[\s\-](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,]+(\d{4})',
             window, re.IGNORECASE,
         )
         if dm:
