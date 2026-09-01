@@ -219,10 +219,7 @@ websites:
     url: "https://www.ecil.co.in/index.php/tenders"
     document_extensions: [".pdf", ".docx", ".doc", ".zip"]
 
-  # ── RECPDCL (REC Power Distribution Co.) — direct GeM/tender PDFs ───────────
-  - name: "RECPDCL Tenders"
-    url: "https://recpdcl.in/tenders"
-    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+  # NOTE: RECPDCL removed — page is an archive of all historical tenders, not just current ones
 
   # NOTE: BHEL removed — /tenders page links to Stock Exchange disclosures, not IT tenders
 

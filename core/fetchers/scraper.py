@@ -111,6 +111,9 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                 # ── Case A: direct document link
                 if ext in site_exts:
+                    # Skip nav/lifecycle link texts (Corrigendum, Amendment, etc.)
+                    if link_text.lower() in _NAV_TEXTS:
+                        continue
                     # Skip known non-tender filenames (certificates, policy docs, etc.)
                     fname_lower = Path(parsed.path).name.lower()
                     if any(frag in fname_lower for frag in _SKIP_FILENAME_FRAGMENTS):
