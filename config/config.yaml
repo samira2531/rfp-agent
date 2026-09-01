@@ -42,6 +42,26 @@ keywords:
   - "surveillance system"
   - "biometric"
   - "access control"
+  # ── Hardware procurement
+  - "laptop"
+  - "desktop"
+  - "workstation"
+  - "server"
+  - "UPS"
+  - "printer"
+  - "scanner"
+  - "IT equipment"
+  - "IT hardware"
+  - "hardware supply"
+  - "supply of computers"
+  - "network switch"
+  - "router"
+  - "tablet"
+  - "data storage"
+  - "SSD"
+  - "IT procurement"
+  - "supply of laptops"
+  - "procurement of hardware"
 
 # ── India-only location filter
 location_filter:
@@ -125,9 +145,11 @@ rss_feeds:
   - name: "RFPMart — Cybersecurity"
     url: "https://www.rfpmart.com/cybersecurity-rfp-bids.xml"
 
-  # CPPP IT-category RSS — bypasses the CAPTCHA-gated HTML interface
+  # CPPP RSS feeds — bypass the CAPTCHA-gated HTML interface
   - name: "CPPP IT Category Tenders (RSS)"
     url: "https://eprocure.gov.in/cppp/rss/tendersbycategory_it.xml"
+
+  # Electronics/office-equipment RSS feeds from CPPP returned HTML (not XML) — removed
 
 # ============================================================
 # Websites — India government procurement portals
@@ -179,10 +201,7 @@ websites:
       - "stpi\\.in.*procurement"
 
   # NOTE: UIDAI consistently times out (30s) — removed until their site is stable
-
-  # NOTE: BEL → tender URL redirects to eprocurebel.co.in (NIC eProcure, CAPTCHA-blocked)
-  # NOTE: CRIS → encoding issues on homepage; tenders likely on NIC eProcure
-  # NOTE: BSNL → tender URL structure changed; not findable from homepage
+  # NOTE: BEL → redirects to NIC eProcure (CAPTCHA-blocked)
 
   # ── National Portal of India — tender listing ────────────────────────────────
   - name: "India.gov.in Tenders"
@@ -194,6 +213,18 @@ websites:
     url: "https://sppp.rajasthan.gov.in/sppp/Home/index"
     document_extensions: [".pdf", ".docx", ".doc", ".zip"]
     ssl_verify: false
+
+  # ── ECIL (Electronics Corporation of India Ltd) ──────────────────────────────
+  - name: "ECIL Tenders"
+    url: "https://www.ecil.co.in/index.php/tenders"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # ── RECPDCL (REC Power Distribution Co.) — direct GeM/tender PDFs ───────────
+  - name: "RECPDCL Tenders"
+    url: "https://recpdcl.in/tenders"
+    document_extensions: [".pdf", ".docx", ".doc", ".zip"]
+
+  # NOTE: BHEL removed — /tenders page links to Stock Exchange disclosures, not IT tenders
 
 # ============================================================
 # GeM Dedicated Fetcher

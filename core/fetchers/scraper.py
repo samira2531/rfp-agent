@@ -27,6 +27,17 @@ _NAV_TEXTS = {
     "archive tenders", "tenders awarded", "awarded tenders", "past tenders",
     "expired tenders", "current tenders", "upcoming tenders", "all tenders",
     "download", "downloads", "view tender", "view rfp", "view document",
+    # Common site-navigation links that leak through on NIC / other portals
+    "about us", "documents", "groups & divisions", "groups and divisions",
+    "divisions", "organisation", "organization", "overview", "introduction",
+    "our services", "products", "solutions", "partners", "clients", "team",
+    "technologies", "technology", "resources", "publications", "reports",
+    # Generic tender lifecycle notices — not standalone RFPs (RECPDCL, STPI, etc.)
+    "corrigendum", "corrigendum 1", "corrigendum 2", "corrigendum 3",
+    "amendment", "amendment 1", "amendment 2", "amendment-1", "amendment-2",
+    "notification for reverse auction", "notification for opening of financial bids",
+    "notification for opening of", "pre-notice inviting tender",
+    "financial bid", "opening of financial bids", "reverse auction",
 }
 
 # Filename fragments that indicate non-tender documents (certificates, policies, etc.)
