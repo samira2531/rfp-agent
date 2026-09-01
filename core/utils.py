@@ -159,11 +159,44 @@ def download_file(url: str, dest: Path, session: requests.Session,
         return False
 
 
+_DEADLINE_LABEL_RE = re.compile(
+    r'(?:last\s+date|closing\s+date|due\s+date|submission\s+deadline|'
+    r'bid\s+closing|bid\s+due|tender\s+closing|deadline\s+for\s+(?:bid|submission|tender)|'
+    r'date\s+of\s+closing|end\s+date\s+for\s+submission|close\s+date)',
+    re.IGNORECASE,
+)
+_MONTH_MAP = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+}
+
+
+def extract_deadline(text: str) -> str:
+    """Return first tender submission deadline found in text as 'YYYY-MM-DD', or ''."""
+    for m in _DEADLINE_LABEL_RE.finditer(text):
+        window = text[m.start(): m.start() + 300]
+        dm = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', window)
+        if dm:
+            d, mo, y = int(dm.group(1)), int(dm.group(2)), int(dm.group(3))
+            if 1 <= d <= 31 and 1 <= mo <= 12 and 2020 <= y <= 2035:
+                return f"{y:04d}-{mo:02d}-{d:02d}"
+        dm = re.search(
+            r'(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{4})',
+            window, re.IGNORECASE,
+        )
+        if dm:
+            d, mo_str, y = int(dm.group(1)), dm.group(2).lower()[:3], int(dm.group(3))
+            mo = _MONTH_MAP.get(mo_str, 0)
+            if mo and 2020 <= y <= 2035:
+                return f"{y:04d}-{mo:02d}-{d:02d}"
+    return ""
+
+
 def record_csv(row: dict):
     csv_path = ROOT_DIR / load_config()["output"]["csv_file"]
     csv_path.parent.mkdir(exist_ok=True)
     write_header = not csv_path.exists()
-    fields = ["date", "title", "source", "url", "file", "keywords_matched"]
+    fields = ["date", "title", "source", "url", "file", "keywords_matched", "deadline"]
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         if write_header:
@@ -232,13 +265,13 @@ def is_detail_page(url: str, extra_patterns: list = None) -> bool:
 
 
 def follow_and_download(page_url: str, session, max_mb: int,
-                        extensions: set, log, ssl_verify: bool = True) -> list:
+                        extensions: set, log, ssl_verify: bool = True) -> tuple:
     """
     Visit an RFP detail page (HTML) and download every attached document.
-    Returns a list of saved file paths.
+    Returns (saved_file_paths: list, deadline: str).
     """
     from bs4 import BeautifulSoup
-    saved = []
+    saved, deadline = [], ""
     try:
         r = session.get(page_url, timeout=30, verify=ssl_verify)
         r.raise_for_status()
@@ -254,10 +287,13 @@ def follow_and_download(page_url: str, session, max_mb: int,
                 dest.write_bytes(r.content)
                 log.info(f"  Saved: {dest.name}")
                 saved.append(str(dest))
-            return saved
+            return saved, deadline
 
-        # Parse the HTML page and collect all document links
+        # Parse the HTML page — extract deadline from page text first
         soup = BeautifulSoup(r.text, "lxml")
+        page_text = soup.get_text(" ", strip=True)
+        deadline  = extract_deadline(page_text)
+
         for a in soup.find_all("a", href=True):
             href    = a["href"].strip()
             abs_url = urllib.parse.urljoin(page_url, href)
@@ -273,4 +309,4 @@ def follow_and_download(page_url: str, session, max_mb: int,
     except Exception as e:
         log.error(f"  follow_and_download error [{page_url}]: {e}")
 
-    return saved
+    return saved, deadline

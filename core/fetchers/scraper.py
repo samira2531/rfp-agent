@@ -11,6 +11,7 @@ from core.utils import (
     DOC_EXTENSIONS, DOWNLOADS_DIR,
     is_detail_page, follow_and_download,
     is_startup_eligible, read_page_text,
+    extract_deadline,
 )
 
 # Single-word / short UI navigation texts that should never be treated as RFP links
@@ -137,6 +138,7 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                         "url":              abs_url,
                         "file":             str(unique_path(dest)) if downloaded else "",
                         "keywords_matched": matched_kw_string(context, keywords),
+                        "deadline":         extract_deadline(context),
                     }
                     record_csv(row)
                     new_items.append(row)
@@ -162,8 +164,8 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                             log.info(f"  Skipped (not startup eligible): {link_text}")
                             continue
 
-                    saved = follow_and_download(abs_url, session, max_mb, site_exts, log,
-                                                ssl_verify=ssl_verify)
+                    saved, deadline = follow_and_download(abs_url, session, max_mb, site_exts, log,
+                                                         ssl_verify=ssl_verify)
                     if not saved:
                         log.info(f"  No documents found at: {link_text or abs_url}")
                         continue
@@ -174,6 +176,7 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                         "url":              abs_url,
                         "file":             "; ".join(saved),
                         "keywords_matched": matched_kw_string(context, keywords),
+                        "deadline":         deadline or extract_deadline(context),
                     }
                     record_csv(row)
                     new_items.append(row)

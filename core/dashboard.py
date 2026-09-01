@@ -24,6 +24,7 @@ LOG_FILE  = LOGS_DIR / "rfp_agent.log"
 
 CSV_FIELDS = [
     "date", "title", "source", "url", "file", "keywords_matched",
+    "deadline",
     "status",
     "approved_by", "approved_date",
     "applied_by",  "applied_date",
@@ -103,6 +104,7 @@ def _build_excel(rows: list) -> bytes:
 
     headers = [
         "Fetched Date", "Title", "Source", "URL", "File Path", "Keywords",
+        "Deadline",
         "Status",
         "Approved By", "Approved Date",
         "Applied By",  "Applied Date",
@@ -151,7 +153,7 @@ def _build_excel(rows: list) -> bytes:
                 cell.font = Font(color="0563C1", underline="single")
         ws.row_dimensions[row_idx].height = 30
 
-    col_widths = [18, 46, 20, 40, 38, 24, 11, 16, 16, 16, 16, 14, 30]
+    col_widths = [18, 46, 20, 40, 38, 24, 14, 11, 16, 16, 16, 16, 14, 30]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
@@ -481,6 +483,12 @@ TEMPLATE = r"""
         <option value="no">No File</option>
       </select>
     </div>
+    <div class="d-flex align-items-center gap-1">
+      <button id="hideExpiredBtn" class="btn btn-sm btn-outline-warning"
+              onclick="toggleHideExpired()" title="Hide RFPs past their submission deadline">
+        <i class="bi bi-clock-history me-1"></i>Active Only
+      </button>
+    </div>
     <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
       <i class="bi bi-x-circle me-1"></i>Clear
     </button>
@@ -496,9 +504,10 @@ TEMPLATE = r"""
           <tr>
             <th style="width:110px">Date</th>
             <th>Title</th>
-            <th style="width:150px">Source</th>
-            <th style="width:120px">Keywords</th>
-            <th style="width:80px"  class="text-center">File</th>
+            <th style="width:140px">Source</th>
+            <th style="width:100px">Keywords</th>
+            <th style="width:95px"  class="text-center">Deadline</th>
+            <th style="width:72px"  class="text-center">File</th>
             <th style="width:46px"  class="text-center">Link</th>
             <th style="width:160px" class="text-center">Status / Track</th>
           </tr>
@@ -512,6 +521,7 @@ TEMPLATE = r"""
               data-url="{{ r.url|e }}"
               data-title="{{ r.title|e }}"
               data-status="{{ st }}"
+              data-deadline="{{ r.deadline|e }}"
               data-approved-by="{{ r.approved_by|e }}"
               data-approved-date="{{ r.approved_date|e }}"
               data-applied-by="{{ r.applied_by|e }}"
@@ -530,6 +540,21 @@ TEMPLATE = r"""
               {% for kw in r.keywords_matched.split(',') if r.keywords_matched %}
               <span class="kw-badge">{{ kw.strip() }}</span>
               {% endfor %}
+            </td>
+            <td class="text-center align-middle" style="font-size:.75rem">
+              {% if r.deadline %}
+                {% if r.deadline < today_str %}
+                  <span class="badge text-bg-danger" style="font-size:.68rem" title="Deadline passed">
+                    <i class="bi bi-x-circle me-1"></i>{{ r.deadline }}
+                  </span>
+                {% else %}
+                  <span class="badge text-bg-success" style="font-size:.68rem" title="Still open">
+                    <i class="bi bi-check-circle me-1"></i>{{ r.deadline }}
+                  </span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
             </td>
             <td class="text-center align-middle" onclick="event.stopPropagation()">
               {% if r.file %}
@@ -730,8 +755,10 @@ TEMPLATE = r"""
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const rows = document.querySelectorAll('#tableBody tr');
-let currentFilePath = '';
-let currentUrl      = '';
+let currentFilePath  = '';
+let currentUrl       = '';
+let _hideExpired     = false;
+const TODAY_ISO      = '{{ today_str }}';
 
 // ── Modal state ────────────────────────────────────────────────────────────────
 let _mRow    = null;
@@ -870,6 +897,14 @@ function refreshStatusCell(row, status, name, dt, notes) {
 }
 
 // ── Filtering ─────────────────────────────────────────────────────────────────
+function toggleHideExpired() {
+  _hideExpired = !_hideExpired;
+  const btn = document.getElementById('hideExpiredBtn');
+  btn.classList.toggle('btn-outline-warning', !_hideExpired);
+  btn.classList.toggle('btn-warning',          _hideExpired);
+  filterTable();
+}
+
 function filterTable() {
   const q       = document.getElementById('searchInput').value.toLowerCase();
   const src     = document.getElementById('sourceFilter').value.toLowerCase();
@@ -879,11 +914,12 @@ function filterTable() {
   const now     = new Date();
   let vis = 0;
   rows.forEach(row => {
-    const text    = row.textContent.toLowerCase();
-    const rSrc    = (row.dataset.source||'').toLowerCase();
-    const rDate   = row.dataset.date||'';
-    const rFile   = (row.dataset.file||'').trim();
-    const rStatus = row.dataset.status||'new';
+    const text     = row.textContent.toLowerCase();
+    const rSrc     = (row.dataset.source||'').toLowerCase();
+    const rDate    = row.dataset.date||'';
+    const rFile    = (row.dataset.file||'').trim();
+    const rStatus  = row.dataset.status||'new';
+    const rDl      = (row.dataset.deadline||'').trim();
     let show = true;
     if (q       && !text.includes(q))    show = false;
     if (src     && !rSrc.includes(src))  show = false;
@@ -896,6 +932,8 @@ function filterTable() {
       else if(dateF==='week') { if(d<new Date(now-7*864e5))show=false; }
       else if(dateF==='month'){ if(d<new Date(now-30*864e5))show=false; }
     }
+    // Hide expired: skip if deadline is set and is in the past
+    if (_hideExpired && rDl && rDl < TODAY_ISO) show = false;
     row.style.display = show?'':'none';
     if(show) vis++;
   });
@@ -905,6 +943,7 @@ function filterTable() {
 function clearFilters() {
   ['searchInput','sourceFilter','statusFilter','dateFilter','fileFilter']
     .forEach(id=>document.getElementById(id).value='');
+  if (_hideExpired) toggleHideExpired();
   filterTable();
 }
 
@@ -1076,10 +1115,12 @@ setTimeout(()=>location.reload(), 300000);
 
 @app.route("/")
 def index():
-    rfps     = load_rfps()
-    stats    = get_stats(rfps)
-    last_run = get_last_run()
-    return render_template_string(TEMPLATE, rfps=rfps, stats=stats, last_run=last_run)
+    rfps      = load_rfps()
+    stats     = get_stats(rfps)
+    last_run  = get_last_run()
+    today_str = date.today().isoformat()
+    return render_template_string(TEMPLATE, rfps=rfps, stats=stats,
+                                  last_run=last_run, today_str=today_str)
 
 
 @app.route("/set-status", methods=["POST"])
