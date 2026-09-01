@@ -135,14 +135,15 @@ def safe_filename(name: str, fallback: str = "document") -> str:
 
 
 def download_file(url: str, dest: Path, session: requests.Session,
-                  max_mb: int, log) -> bool:
+                  max_mb: int, log):
+    """Download url to dest (auto-renamed if exists). Returns actual saved Path or None."""
     try:
         with session.get(url, stream=True, timeout=40) as r:
             r.raise_for_status()
             size = int(r.headers.get("content-length", 0))
             if size and size > max_mb * 1024 * 1024:
                 log.warning(f"Skipping — too large ({size // 1024 // 1024} MB): {url}")
-                return False
+                return None
             dest = unique_path(dest)
             with open(dest, "wb") as f:
                 downloaded = 0
@@ -151,18 +152,22 @@ def download_file(url: str, dest: Path, session: requests.Session,
                     downloaded += len(chunk)
                     if downloaded > max_mb * 1024 * 1024:
                         log.warning(f"Aborted — exceeded size limit: {url}")
-                        return False
+                        try: dest.unlink()
+                        except Exception: pass
+                        return None
             log.info(f"  Saved: {dest.name}")
-            return True
+            return dest
     except Exception as e:
         log.error(f"  Download failed [{url}]: {e}")
-        return False
+        return None
 
 
 _DEADLINE_LABEL_RE = re.compile(
-    r'(?:last\s+date|closing\s+date|due\s+date|submission\s+deadline|'
-    r'bid\s+closing|bid\s+due|tender\s+closing|deadline\s+for\s+(?:bid|submission|tender)|'
-    r'date\s+of\s+closing|end\s+date\s+for\s+submission|close\s+date)',
+    r'(?:bid\s+end\s+date|last\s+date|closing\s+date|due\s+date|'
+    r'submission\s+deadline|bid\s+closing|bid\s+due|tender\s+closing|'
+    r'deadline\s+for\s+(?:bid|submission|tender)|date\s+of\s+closing|'
+    r'end\s+date\s+for\s+submission|close\s+date|'
+    r'closing\s+time|end\s+date/time|bid\s+end)',
     re.IGNORECASE,
 )
 _MONTH_MAP = {
@@ -175,11 +180,16 @@ def extract_deadline(text: str) -> str:
     """Return first tender submission deadline found in text as 'YYYY-MM-DD', or ''."""
     for m in _DEADLINE_LABEL_RE.finditer(text):
         window = text[m.start(): m.start() + 300]
+        # DD-MM-YYYY (optionally followed by time HH:MM:SS)
         dm = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', window)
         if dm:
             d, mo, y = int(dm.group(1)), int(dm.group(2)), int(dm.group(3))
+            # Prefer interpretation where d<=31 and mo<=12; swap if needed
+            if d > 12 and mo <= 12 and 1 <= d <= 31 and 2020 <= y <= 2035:
+                return f"{y:04d}-{mo:02d}-{d:02d}"
             if 1 <= d <= 31 and 1 <= mo <= 12 and 2020 <= y <= 2035:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
+        # DD MonthName YYYY
         dm = re.search(
             r'(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{4})',
             window, re.IGNORECASE,
@@ -190,6 +200,24 @@ def extract_deadline(text: str) -> str:
             if mo and 2020 <= y <= 2035:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
     return ""
+
+
+def extract_deadline_from_pdf(path: Path) -> str:
+    """Read up to 6 pages of a PDF and extract the submission deadline. Returns '' on failure."""
+    try:
+        import pdfplumber
+        with pdfplumber.open(path) as pdf:
+            text = "\n".join(page.extract_text() or "" for page in pdf.pages[:6])
+        return extract_deadline(text)
+    except Exception:
+        return ""
+
+
+def is_deadline_past(deadline_iso: str) -> bool:
+    """Return True if a non-empty ISO deadline string is in the past (before today)."""
+    if not deadline_iso:
+        return False
+    return deadline_iso < datetime.now().strftime("%Y-%m-%d")
 
 
 def record_csv(row: dict):
@@ -282,8 +310,8 @@ def follow_and_download(page_url: str, session, max_mb: int,
         if "html" not in content_type:
             ext = Path(urllib.parse.urlparse(page_url).path).suffix.lower()
             if ext in extensions and r.content:
-                fname = safe_filename(Path(urllib.parse.urlparse(page_url).path).stem) + ext
-                dest  = unique_path(DOWNLOADS_DIR / fname)
+                fname  = safe_filename(Path(urllib.parse.urlparse(page_url).path).stem) + ext
+                dest   = unique_path(DOWNLOADS_DIR / fname)
                 dest.write_bytes(r.content)
                 log.info(f"  Saved: {dest.name}")
                 saved.append(str(dest))
@@ -303,8 +331,9 @@ def follow_and_download(page_url: str, session, max_mb: int,
             link_text = a.get_text(" ", strip=True)
             fname = safe_filename(link_text or Path(urllib.parse.urlparse(abs_url).path).stem) + ext
             dest  = DOWNLOADS_DIR / fname
-            if download_file(abs_url, dest, session, max_mb, log):
-                saved.append(str(unique_path(dest)))
+            actual = download_file(abs_url, dest, session, max_mb, log)
+            if actual:
+                saved.append(str(actual))
 
     except Exception as e:
         log.error(f"  follow_and_download error [{page_url}]: {e}")

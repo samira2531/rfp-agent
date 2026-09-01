@@ -17,7 +17,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-from core.utils import ROOT_DIR, LOGS_DIR
+from core.utils import (ROOT_DIR, LOGS_DIR,
+                        extract_deadline_from_pdf, is_deadline_past)
 
 CSV_FILE = ROOT_DIR / "data" / "rfp_tracker.csv"
 LOG_FILE  = LOGS_DIR / "rfp_agent.log"
@@ -375,6 +376,10 @@ TEMPLATE = r"""
     <a class="btn btn-sm btn-success" href="/export-excel">
       <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
     </a>
+    <button class="btn btn-sm btn-outline-warning" onclick="cleanExpired()" id="cleanBtn"
+            title="Read downloaded PDFs, extract deadlines, and remove expired entries">
+      <i class="bi bi-trash3 me-1"></i>Clean Expired
+    </button>
     <button class="btn btn-sm btn-outline-light" onclick="location.reload()" title="Refresh">
       <i class="bi bi-arrow-clockwise"></i>
     </button>
@@ -1083,6 +1088,22 @@ function openFileDirect() {
   .then(r=>r.json()).then(d=>toast(d.message));
 }
 
+// ── Clean Expired ─────────────────────────────────────────────────────────────
+function cleanExpired() {
+  const btn = document.getElementById('cleanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-1 spinning"></i>Cleaning…';
+  toast('Reading PDFs to find expired tenders — this may take a minute…', 'warning');
+  fetch('/clean-expired', {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      toast(d.message, d.removed > 0 ? 'success' : 'secondary');
+      if (d.removed > 0) setTimeout(() => location.reload(), 2500);
+      else { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash3 me-1"></i>Clean Expired'; }
+    })
+    .catch(() => { btn.disabled=false; btn.innerHTML='<i class="bi bi-trash3 me-1"></i>Clean Expired'; toast('Error','danger'); });
+}
+
 // ── Agent ─────────────────────────────────────────────────────────────────────
 function runAgent() {
   const btn = document.getElementById('runBtn');
@@ -1209,6 +1230,85 @@ def open_file():
         return jsonify({"message": f"Opened: {p.name}"})
     except Exception as e:
         return jsonify({"message": f"Error: {e}"})
+
+
+@app.route("/clean-expired", methods=["POST"])
+def clean_expired():
+    """Read PDFs for entries without a deadline, fill in the deadline, remove expired rows."""
+    if not CSV_FILE.exists():
+        return jsonify({"ok": True, "removed": 0, "message": "No CSV file found"})
+
+    with open(CSV_FILE, encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+
+    today = date.today().isoformat()
+    kept, removed = [], 0
+
+    for r in rows:
+        # Ensure all fields exist
+        for fld in CSV_FIELDS:
+            r.setdefault(fld, "")
+
+        deadline = r.get("deadline", "").strip()
+
+        # If no deadline stored yet, try to extract from the downloaded file
+        if not deadline:
+            file_path = r.get("file", "").strip()
+            if file_path:
+                for fp in file_path.split(";"):
+                    fp = fp.strip()
+                    p = Path(fp)
+                    if not p.is_absolute():
+                        p = ROOT_DIR / p
+                    if p.exists() and p.suffix.lower() == ".pdf":
+                        deadline = extract_deadline_from_pdf(p)
+                        if deadline:
+                            r["deadline"] = deadline
+                            break
+
+        # Remove if deadline is confirmed past
+        if deadline and is_deadline_past(deadline):
+            removed += 1
+            # Delete the downloaded file(s) too
+            file_path = r.get("file", "").strip()
+            if file_path:
+                for fp in file_path.split(";"):
+                    fp = fp.strip()
+                    p = Path(fp)
+                    if not p.is_absolute():
+                        p = ROOT_DIR / p
+                    try:
+                        if p.exists():
+                            p.unlink()
+                    except Exception:
+                        pass
+        else:
+            kept.append(r)
+
+    # Also drop junk titles that slip through (cancellations, amendments, etc.)
+    _junk_re = re.compile(
+        r'cancellation\s+notice|tender\s+cancellation|^amendment\s*[\d-]*$|'
+        r'^corrigendum\s*[\d-]*$|amednment|notification\s+for\s+reverse\s+auction|'
+        r'notification\s+for\s+opening\s+of',
+        re.IGNORECASE,
+    )
+    final = []
+    for r in kept:
+        if _junk_re.search(r.get("title", "")):
+            removed += 1
+        else:
+            final.append(r)
+    kept = final
+
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        for r in kept:
+            w.writerow({k: r.get(k, "") for k in CSV_FIELDS})
+
+    msg = (f"Removed {removed} expired/junk RFP{'s' if removed != 1 else ''} — {len(kept)} remain."
+           if removed else f"No expired RFPs found. {len(kept)} entries checked.")
+    return jsonify({"ok": True, "removed": removed, "kept": len(kept), "message": msg})
 
 
 @app.route("/run-agent", methods=["POST"])

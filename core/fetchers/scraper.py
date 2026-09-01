@@ -11,7 +11,7 @@ from core.utils import (
     DOC_EXTENSIONS, DOWNLOADS_DIR,
     is_detail_page, follow_and_download,
     is_startup_eligible, read_page_text,
-    extract_deadline,
+    extract_deadline, extract_deadline_from_pdf, is_deadline_past,
 )
 
 # Single-word / short UI navigation texts that should never be treated as RFP links
@@ -36,9 +36,11 @@ _NAV_TEXTS = {
     # Generic tender lifecycle notices — not standalone RFPs (RECPDCL, STPI, etc.)
     "corrigendum", "corrigendum 1", "corrigendum 2", "corrigendum 3",
     "amendment", "amendment 1", "amendment 2", "amendment-1", "amendment-2",
+    "amednment", "amednment 1",  # common misspelling
     "notification for reverse auction", "notification for opening of financial bids",
     "notification for opening of", "pre-notice inviting tender",
     "financial bid", "opening of financial bids", "reverse auction",
+    "cancellation notice", "tender cancellation",
 }
 
 # Filename fragments that indicate non-tender documents (certificates, policies, etc.)
@@ -114,6 +116,13 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                     if any(frag in fname_lower for frag in _SKIP_FILENAME_FRAGMENTS):
                         continue
 
+                    # Check deadline from listing-page context before downloading
+                    ctx_deadline = extract_deadline(context)
+                    if is_deadline_past(ctx_deadline):
+                        seen.add(abs_url)  # mark seen so we don't retry
+                        log.info(f"  Skipped expired (deadline {ctx_deadline}): {link_text[:60]}")
+                        continue
+
                     seen.add(abs_url)
 
                     if require_startup and startup_kws:
@@ -130,15 +139,26 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                     fname      = safe_filename(title_str or Path(parsed.path).stem) + ext
                     dest       = DOWNLOADS_DIR / fname
-                    downloaded = download_file(abs_url, dest, session, max_mb, log)
+                    actual     = download_file(abs_url, dest, session, max_mb, log)
+
+                    # If listing context had no deadline, try reading the PDF
+                    deadline = ctx_deadline
+                    if actual and not deadline:
+                        deadline = extract_deadline_from_pdf(actual)
+                    if is_deadline_past(deadline):
+                        log.info(f"  Skipped expired (PDF deadline {deadline}): {title_str[:60]}")
+                        try: actual.unlink()
+                        except Exception: pass
+                        continue
+
                     row = {
                         "date":             datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "title":            title_str or fname,
                         "source":           name,
                         "url":              abs_url,
-                        "file":             str(unique_path(dest)) if downloaded else "",
+                        "file":             str(actual) if actual else "",
                         "keywords_matched": matched_kw_string(context, keywords),
-                        "deadline":         extract_deadline(context),
+                        "deadline":         deadline,
                     }
                     record_csv(row)
                     new_items.append(row)
@@ -166,8 +186,15 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                     saved, deadline = follow_and_download(abs_url, session, max_mb, site_exts, log,
                                                          ssl_verify=ssl_verify)
+                    deadline = deadline or extract_deadline(context)
                     if not saved:
                         log.info(f"  No documents found at: {link_text or abs_url}")
+                        continue
+                    if is_deadline_past(deadline):
+                        log.info(f"  Skipped expired (deadline {deadline}): {link_text[:60]}")
+                        for fp in saved:
+                            try: Path(fp).unlink()
+                            except Exception: pass
                         continue
                     row = {
                         "date":             datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -176,7 +203,7 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                         "url":              abs_url,
                         "file":             "; ".join(saved),
                         "keywords_matched": matched_kw_string(context, keywords),
-                        "deadline":         deadline or extract_deadline(context),
+                        "deadline":         deadline,
                     }
                     record_csv(row)
                     new_items.append(row)
