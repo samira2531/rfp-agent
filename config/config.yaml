@@ -145,11 +145,7 @@ rss_feeds:
   - name: "RFPMart — Cybersecurity"
     url: "https://www.rfpmart.com/cybersecurity-rfp-bids.xml"
 
-  # CPPP RSS feeds — bypass the CAPTCHA-gated HTML interface
-  - name: "CPPP IT Category Tenders (RSS)"
-    url: "https://eprocure.gov.in/cppp/rss/tendersbycategory_it.xml"
-
-  # Electronics/office-equipment RSS feeds from CPPP returned HTML (not XML) — removed
+  # NOTE: CPPP IT RSS removed — URL now returns HTML (not XML) and times out after 60s
 
 # ============================================================
 # Websites — India government procurement portals
