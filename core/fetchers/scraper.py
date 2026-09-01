@@ -47,7 +47,11 @@ _NAV_TEXTS = {
 _SKIP_FILENAME_FRAGMENTS = {
     "certificate", "cert_", "_cert", "gigw", "wqc", "policy", "privacy",
     "terms", "user_manual", "manual", "brochure", "annual_report",
+    "calender", "calendar",  # printed calendar printing tenders
 }
+
+# Title prefixes that indicate junk link extraction (HTML rendering artifacts)
+_JUNK_TITLE_PREFIXES = ("--", "- -", "   ", "\n", "\r")
 
 
 def fetch_websites(config: dict, seen: set, new_items: list, session, log):
@@ -89,7 +93,7 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                 if abs_url in seen:
                     continue
 
-                link_text = a.get_text(" ", strip=True)
+                link_text = " ".join(a.get_text(" ", strip=True).split())
                 context   = f"{link_text} {a.get('title') or ''}"
                 # Walk up the DOM until we find a container with meaningful text
                 # that's not the entire page body. Cap at 4 levels to avoid
@@ -113,6 +117,9 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
                 if ext in site_exts:
                     # Skip nav/lifecycle link texts (Corrigendum, Amendment, etc.)
                     if link_text.lower() in _NAV_TEXTS:
+                        continue
+                    # Skip links whose extracted text starts with HTML rendering artifacts
+                    if link_text.startswith(_JUNK_TITLE_PREFIXES):
                         continue
                     # Skip known non-tender filenames (certificates, policy docs, etc.)
                     fname_lower = Path(parsed.path).name.lower()
@@ -142,7 +149,7 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                     fname      = safe_filename(title_str or Path(parsed.path).stem) + ext
                     dest       = DOWNLOADS_DIR / fname
-                    actual     = download_file(abs_url, dest, session, max_mb, log)
+                    actual     = download_file(abs_url, dest, session, max_mb, log, ssl_verify=ssl_verify)
 
                     # If listing context had no deadline, try reading the PDF
                     deadline = ctx_deadline
@@ -173,6 +180,9 @@ def fetch_websites(config: dict, seen: set, new_items: list, session, log):
 
                     # Skip pure navigation links (Close, Back, Services, etc.)
                     if link_text.lower() in _NAV_TEXTS:
+                        continue
+                    # Skip links whose extracted text starts with HTML rendering artifacts
+                    if link_text.startswith(_JUNK_TITLE_PREFIXES):
                         continue
                     # Also skip very short or empty link texts with no title attr
                     if len(link_text) < 8 and not a.get("title"):

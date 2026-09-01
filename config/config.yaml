@@ -219,6 +219,8 @@ websites:
     url: "https://www.ecil.co.in/index.php/tenders"
     document_extensions: [".pdf", ".docx", ".doc", ".zip"]
 
+  # NOTE: CDOT removed — current tenders are exhibition stall & QKD research (not IT managed services)
+  # NOTE: MTNL removed — tender page is an archive (old and new tenders mixed, no reliable deadline filtering)
   # NOTE: RECPDCL removed — page is an archive of all historical tenders, not just current ones
 
   # NOTE: BHEL removed — /tenders page links to Stock Exchange disclosures, not IT tenders

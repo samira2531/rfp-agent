@@ -135,10 +135,10 @@ def safe_filename(name: str, fallback: str = "document") -> str:
 
 
 def download_file(url: str, dest: Path, session: requests.Session,
-                  max_mb: int, log):
+                  max_mb: int, log, ssl_verify: bool = True):
     """Download url to dest (auto-renamed if exists). Returns actual saved Path or None."""
     try:
-        with session.get(url, stream=True, timeout=40) as r:
+        with session.get(url, stream=True, timeout=40, verify=ssl_verify) as r:
             r.raise_for_status()
             size = int(r.headers.get("content-length", 0))
             if size and size > max_mb * 1024 * 1024:
@@ -331,7 +331,7 @@ def follow_and_download(page_url: str, session, max_mb: int,
             link_text = a.get_text(" ", strip=True)
             fname = safe_filename(link_text or Path(urllib.parse.urlparse(abs_url).path).stem) + ext
             dest  = DOWNLOADS_DIR / fname
-            actual = download_file(abs_url, dest, session, max_mb, log)
+            actual = download_file(abs_url, dest, session, max_mb, log, ssl_verify=ssl_verify)
             if actual:
                 saved.append(str(actual))
 
